@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_header %}Settings{% endblock %}
+{% block content %}
+
+<div class="settings-card">
+    <h2>Account Settings</h2>
+    <form action="{{ url_for('settings') }}" method="POST" class="settings-form" enctype="multipart/form-data">
+        <label>Name</label>
+        <input type="text" name="name" value="{{ user.name }}" required>
+
+        <label>Email</label>
+        <input type="email" name="email" value="{{ user.email }}" required>
+
+        <label>Bio</label>
+        <textarea name="bio">{{ user.bio }}</textarea>
+
+        <label>Profile Avatar (cartoon style only)</label>
+        <p style="font-size:0.9rem; color:#5d6f92;">Select from a curated set of animated/cartoon avatars. Uploads are disabled to keep a consistent theme.</p>
+        <div class="avatar-options">
+            {% for avatar in avatar_choices %}
+            <label class="avatar-choice{% if user.profile_pic == avatar %} selected{% endif %}">
+                <input type="radio" name="profile_pic" value="{{ avatar }}" {% if user.profile_pic == avatar %}checked{% endif %}> 
+                <img src="{{ avatar }}" alt="avatar">
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="skills-label-wrapper">
+            <label>Skills</label>
+            <span class="tooltip" data-tooltip="Include your strongest competencies. Enter extra skills in the add field. Soft/hard skills help others connect on relevance.">i</span>
+        </div>
+        <div class="skills-checkboxes">
+            {% for skill in skill_options %}
+            <label class="skill-option">
+                <input type="checkbox" name="skills" value="{{ skill }}" {% if skill in user_skills %}checked{% endif %}>
+                <span>{{ skill }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <label>Add a skill</label>
+        <input type="text" name="new_skill" placeholder="e.g. UI/UX, Python, Data Analytics">
+
+        <label>Category for added skill</label>
+        <select name="new_skill_category" style="margin-bottom: 16px;">
+            <option value="Tech">Tech</option>
+            <option value="Non-Tech" selected>Non-Tech</option>
+            <option value="General">General</option>
+        </select>
+
+        <button type="submit">Save Settings</button>
+    </form>
+</div>
+
+<script>
+    function refreshSkillStyles() {
+        document.querySelectorAll('.skill-option').forEach(label => {
+            const checkbox = label.querySelector('input[type="checkbox"]');
+            if (checkbox && checkbox.checked) {
+                label.classList.add('selected-skill');
+                label.classList.remove('unselected-skill');
+            } else {
+                label.classList.add('unselected-skill');
+                label.classList.remove('selected-skill');
+            }
+        });
+    }
+
+    document.querySelectorAll('.skill-option input[type="checkbox"]').forEach(input => {
+        input.addEventListener('change', refreshSkillStyles);
+    });
+
+    refreshSkillStyles();
+</script>
+
+{% endblock %}

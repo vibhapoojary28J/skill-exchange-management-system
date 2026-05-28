@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Upload{% endblock %}
+{% block page_header %}Upload{% endblock %}
+{% block content %}
+
+<div class="upload-card">
+    <h2>Upload New Skill Video</h2>
+    <p>Support any skill: painting, guitar, dance, business, tech, wellness and more.</p>
+    <form method="POST" enctype="multipart/form-data" class="upload-form">
+        <input type="text" name="title" placeholder="Title" required>
+        <textarea name="description" placeholder="Description"></textarea>
+        <select name="category" required>
+            <option value="General" selected>General</option>
+            <option value="Art">Art</option>
+            <option value="Music">Music</option>
+            <option value="Dance">Dance</option>
+            <option value="Crafts">Crafts</option>
+            <option value="Cooking">Cooking</option>
+            <option value="Business">Business</option>
+            <option value="Wellness">Wellness</option>
+            <option value="Technology">Technology</option>
+            <option value="Other">Other</option>
+        </select>
+        <input type="file" name="video" accept="video/*" required>
+        <button type="submit">Upload</button>
+    </form>
+</div>
+
+{% endblock %}

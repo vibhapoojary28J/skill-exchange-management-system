@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Connections{% endblock %}
+{% block page_header %}Connections{% endblock %}
+{% block content %}
+
+<h2>Connect with People 🤝</h2>
+<p>Pending requests: <strong>{{ standing_requests or 0 }}</strong></p>
+
+<div class="connections-grid">
+    {% for user in users %}
+    <div class="card">
+        <h3><a href="{{ url_for('view_user_profile', profile_user_id=user.user_id) }}">{{ user.name }}</a></h3>
+        <p>{{ user.email }}</p>
+        <form action="{{ url_for('send_request', user_id=user.user_id) }}" method="POST" class="inline-form">
+            <button>Connect</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+<h3>Pending requests</h3>
+<div class="connections-grid">
+    {% for pending in pending_requests %}
+    <div class="card">
+        <h3>{{ pending.sender_name }}</h3>
+        <form action="{{ url_for('respond_request', connection_id=pending.connection_id, action='accept') }}" method="POST" class="inline-form">
+            <button class="button">Accept</button>
+        </form>
+        <form action="{{ url_for('respond_request', connection_id=pending.connection_id, action='reject') }}" method="POST" class="inline-form">
+            <button class="button secondary">Reject</button>
+        </form>
+    </div>
+    {% else %}
+    <p>No pending connection requests.</p>
+    {% endfor %}
+</div>
+
+<h3>Mutual friends suggestions</h3>
+<div class="connections-grid">
+    {% for m in mutual_friends %}
+    <div class="card">
+        <h4>{{ m.name }}</h4>
+        <p>{{ m.email }}</p>
+        <p>Mutual interests</p>
+        <form action="{{ url_for('send_request', user_id=m.user_id) }}" method="POST" class="inline-form">
+            <button>Connect</button>
+        </form>
+    </div>
+    {% else %}
+    <p>No mutual friend suggestions at this time.</p>
+    {% endfor %}
+</div>
+
+<h3>Your outgoing requests</h3>
+<div class="connections-grid">
+    {% for req in outgoing_requests %}
+    <div class="card">
+        <h4>{{ req.receiver_name }}</h4>
+        <p>Request pending</p>
+        <form action="{{ url_for('withdraw_request', connection_id=req.connection_id) }}" method="POST" class="inline-form">
+            <button class="button secondary">Withdraw</button>
+        </form>
+    </div>
+    {% else %}
+    <p>No outgoing requests.</p>
+    {% endfor %}
+</div>
+
+
+{% endblock %}

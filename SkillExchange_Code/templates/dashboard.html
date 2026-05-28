@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_header %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="dashboard-grid">
+    <section class="feed" style="grid-column: 1 / -1; margin-bottom: 16px;">
+        <div class="dashboard-top">
+            <div>
+                <h2>Welcome back, {{ session.user_name }}!</h2>
+                <p>Discover new skills and experiences, from art to coding and beyond.</p>
+            </div>
+            <div class="video-highlight-card">
+                <h3>Top trending learning topics</h3>
+                <p>Boost your skills with these curated playlists based on your most used tags.</p>
+                <div class="video-highlight-tags">
+                    <span>Python</span>
+                    <span>Data Analytics</span>
+                    <span>UI/UX</span>
+                    <span>Web Development</span>
+                    <span>Cloud</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="activity-panel">
+            <h3>Recent Activity</h3>
+            <ul>
+                {% for rc in recent_connections %}
+                <li>🔗 {{ rc.name }} sent you a connection request ({{ rc.when.strftime('%Y-%m-%d %H:%M') }})</li>
+                {% endfor %}
+                {% for cm in recent_comments %}
+                <li>💬 {{ cm.name }} commented "{{ cm.text[:50] }}..." ({{ cm.when.strftime('%Y-%m-%d %H:%M') }})</li>
+                {% endfor %}
+                {% for up in recent_uploads %}
+                <li>⬆️ You uploaded "{{ up.title }}" ({{ up.when.strftime('%Y-%m-%d %H:%M') }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="sort-links">Sort from: <a href="?sort_by=new">New</a> | <a href="?sort_by=likes">Likes</a> | <a href="?sort_by=rating">Rating</a></div>
+
+        <h2>Community Feed 🎥</h2>
+
+        {% for video in videos %}
+        <div class="video-card">
+            <div class="video-meta">
+                <strong>{{ video.title }}</strong>
+                <span>by {{ video.creator_name }}</span>
+                <span class="card-tag">{{ video.category or 'General' }}</span>
+            </div>
+            <p>{{ video.description }}</p>
+
+            <video class="video-player" controls>
+                <source src="{{ video.video_url }}" type="video/mp4">
+                Your browser does not support video playback.
+            </video>
+
+            <div class="video-actions">
+                <span class="rating-stars" data-rating="{{ video.average_rating or 0 }}" title="{{ video.average_rating or '0.0' }} stars">
+                    {% for i in range(1,6) %}
+                        <span class="star {{ 'filled' if video.average_rating and i <= video.average_rating|round(0,'floor') else '' }}">★</span>
+                    {% endfor %}
+                </span>
+
+                <button type="button" class="like-btn{{ ' liked' if video.liked_by_current else '' }}" data-video-id="{{ video.video_id }}">
+                    👍 <span class="likes-count">{{ video.likes }}</span>
+                </button>
+
+                <button class="comment-toggle-btn" data-video-id="{{ video.video_id }}">💬 Comment</button>
+            </div>
+
+            <div class="video-progress-box">
+                <div class="video-progress-label">Course progress</div>
+                <div class="progress-bar"><div class="progress-fill" style="width: {{ (video.likes*7 % 100) if video.likes else 25 }}%;"></div></div>
+            </div>
+
+            <div class="comment-section" id="comment-section-{{ video.video_id }}" style="display:none;">
+                <h4>Comments</h4>
+                {% if video.comments %}
+                    {% for comment in video.comments %}
+                        <div class="comment-item"><strong>{{ comment.author }}</strong>: {{ comment.text }}</div>
+                    {% endfor %}
+                {% else %}
+                    <div class="comment-item">No comments yet.</div>
+                {% endif %}
+
+                <form action="{{ url_for('add_comment', video_id=video.video_id) }}" method="POST" class="comment-form">
+                    <input type="text" name="comment" placeholder="Add a comment" required>
+                    <button>Send</button>
+                </form>
+            </div>
+
+            <form action="{{ url_for('rate', video_id=video.video_id) }}" method="POST" class="rating-form">
+                <label>Rate:</label>
+                <input type="number" name="rating" min="1" max="5" required>
+                <button>Submit</button>
+            </form>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+
+{% endblock %}

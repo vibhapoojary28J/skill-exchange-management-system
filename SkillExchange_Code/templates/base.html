@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SkillExchange - {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+<div class="top-nav">
+    <button id="sidebar-toggle" class="hamburger">☰</button>
+    <div class="top-nav-title">SkillXchange</div>
+    <div class="top-nav-links">
+        <a href="{{ url_for('notifications') }}" class="notification-link">🔔 Notifications <span id="notif-count">{{ unread_notifications or 0 }}</span></a>
+        <a href="{{ url_for('messages') }}">💬 Messages</a>
+        <a href="{{ url_for('settings') }}">⚙️ Settings</a>
+        <button id="dark-mode-toggle" type="button">🌗</button>
+        <a class="btn-logout" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+    <div class="top-nav-user">
+        <img class="top-avatar" src="{{ session.get('user_profile_pic', 'https://api.dicebear.com/7.x/adventurer/svg?seed=guest') }}" alt="Avatar" onerror="this.src='https://api.dicebear.com/7.x/adventurer/svg?seed=fallback';"/>
+        <span>{{ session.get('user_name', 'Guest') }}</span>
+    </div>
+</div>
+
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="brand">SkillXchange</div>
+        <div class="profile-summary">
+            <strong>{{ session.get('user_name', 'Guest') }}</strong>
+            <span>{{ session.get('user_email', '') }}</span>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+            <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+            <a href="{{ url_for('connections') }}" class="nav-link">Connections <span class="badge">{{ pending_requests_count or 0 }}</span></a>
+            <a href="{{ url_for('analytics') }}" class="nav-link">Analytics</a>
+            <a href="{{ url_for('upload_video') }}" class="nav-link">Upload</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <h1>{% block page_header %}SkillExchange{% endblock %}</h1>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="toast-container">
+            {% for category, message in messages %}
+            <div class="toast toast-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <section class="content">{% block content %}{% endblock %}</section>
+    </main>
+
+    <aside class="right-panel" id="right-panel">
+        <h3>Quick Insights</h3>
+        <div class="right-insight" id="quick-connections">Connect requests: 0</div>
+        <div class="right-insight" id="quick-notifications">Unread notifications: 0</div>
+        <h4>Recent activity</h4>
+        <ul class="recent-activity" id="recent-activity">
+            <li>Loading...</li>
+        </ul>
+        <div class="quick-filters">
+            <button data-filter="all" class="active">All</button>
+            <button data-filter="connect">Connections</button>
+            <button data-filter="notification">Notifications</button>
+        </div>
+    </aside>
+</div>
+
+<script>
+    const body = document.body;
+    const sidebar = document.querySelector('.sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    const darkToggle = document.getElementById('dark-mode-toggle');
+
+    function updateActiveNav() {
+        const navLinks = document.querySelectorAll('.sidebar nav a');
+        const path = window.location.pathname;
+        navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === path);
+        });
+    }
+
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            document.querySelector('.app-container').classList.toggle('sidebar-collapsed');
+        });
+    }
+
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            body.classList.add('dark-mode');
+        } else {
+            body.classList.remove('dark-mode');
+        }
+        localStorage.setItem('theme', theme);
+    }
+
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+
+    if (darkToggle) {
+        darkToggle.addEventListener('click', () => {
+            applyTheme(body.classList.contains('dark-mode') ? 'light' : 'dark');
+        });
+    }
+
+    function refreshNotification() {
+        fetch('/notifications?json=1').then(r => r.json()).then(data => {
+            const badge = document.getElementById('notif-count');
+            if (badge) badge.textContent = data.unread_count;
+        }).catch(() => {});
+    }
+    setInterval(refreshNotification, 10000);
+
+    function refreshSidebar() {
+        fetch('/sidebar_info').then(r => r.json()).then(data => {
+            if (data.error) return;
+            document.getElementById('quick-connections').textContent = `Connect requests: ${data.pending_requests}`;
+            document.getElementById('quick-notifications').textContent = `Unread notifications: ${data.unread_notifications}`;
+            const list = document.getElementById('recent-activity');
+            list.innerHTML = '';
+            if (data.recent_activities.length === 0) {
+                list.insertAdjacentHTML('beforeend', '<li>No activity yet.</li>');
+            } else {
+                data.recent_activities.forEach(item => {
+                    const icon = item.type === 'connect' ? '🤝' : '🔔';
+                    const text = item.type === 'connect' ? `${item.name} sent a connection request` : item.message;
+                    list.insertAdjacentHTML('beforeend', `<li>${icon} ${text} <em style=\"color:#7282b4;\">${item.time}</em></li>`);
+                });
+            }
+        }).catch(() => {});
+    }
+    refreshSidebar();
+    setInterval(refreshSidebar, 13000);
+
+    document.querySelectorAll('.quick-filters button').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const filter = this.getAttribute('data-filter');
+            document.querySelectorAll('.quick-filters button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.recent-activity li').forEach(li => {
+                if (filter === 'all') {
+                    li.style.display = 'block';
+                } else {
+                    const text = li.textContent.toLowerCase();
+                    li.style.display = text.includes(filter) ? 'block' : 'none';
+                }
+            });
+        });
+    });
+
+    function setupVideoLikeInteractions() {
+        document.querySelectorAll('.like-btn').forEach((btn) => {
+            btn.addEventListener('click', async (event) => {
+                event.preventDefault();
+                const videoId = btn.dataset.videoId;
+                if (!videoId) return;
+
+                btn.classList.add('pop');
+                setTimeout(() => btn.classList.remove('pop'), 400);
+
+                try {
+                    const response = await fetch(`/like/${videoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        console.error('Like request failed, status', response.status);
+                        return;
+                    }
+
+                    const data = await response.json();
+                    if (data && typeof data.likes !== 'undefined') {
+                        const countEl = btn.querySelector('.likes-count');
+                        if (countEl) countEl.textContent = data.likes;
+                        if (data.liked) btn.classList.add('liked'); else btn.classList.remove('liked');
+                    }
+                } catch (err) {
+                    console.error('Error liking video', err);
+                }
+            });
+        });
+    }
+
+    function setupCommentToggles() {
+        document.querySelectorAll('.comment-toggle-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const videoId = btn.dataset.videoId;
+                const section = document.getElementById(`comment-section-${videoId}`);
+                if (section) {
+                    section.style.display = section.style.display === 'none' || !section.style.display ? 'block' : 'none';
+                }
+            });
+        });
+    }
+
+    function setupVideoProgress() {
+        document.querySelectorAll('.video-player').forEach((video) => {
+            const card = video.closest('.video-card');
+            const progressFill = card ? card.querySelector('.progress-fill') : null;
+            if (!progressFill) return;
+
+            video.addEventListener('timeupdate', () => {
+                if (!video.duration || video.duration === Infinity) return;
+                const percentage = Math.min(100, Math.floor((video.currentTime / video.duration) * 100));
+                progressFill.style.width = `${percentage}%`;
+            });
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        updateActiveNav();
+        setupVideoLikeInteractions();
+        setupCommentToggles();
+        setupVideoProgress();
+    });
+</script>
+
+</body>
+</html>

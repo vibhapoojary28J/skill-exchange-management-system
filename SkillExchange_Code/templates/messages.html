@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Messages{% endblock %}
+{% block page_header %}Messages{% endblock %}
+{% block content %}
+
+<h2>Messages</h2>
+
+<div class="messages-grid">
+    <div class="message-list">
+        <h3>Contacts</h3>
+        <input type="text" id="contactSearch" placeholder="Search contacts..." class="contact-search" />
+        {% if contacts %}
+            {% for user in contacts %}
+            <a class="contact-item{% if selected_user and selected_user.user_id == user.user_id %} active{% endif %}" href="{{ url_for('messages') }}?with_user={{ user.user_id }}">
+                <img class="contact-avatar" src="{{ user.profile_pic or 'https://api.dicebear.com/7.x/adventurer/svg?seed=contact-'+user.user_id|string }}" alt="{{ user.name }}">
+                <span>{{ user.name }}</span>
+                <span class="status-dot online"></span>
+                {% if unread_map and unread_map.get(user.user_id) %}
+                <span class="badge">{{ unread_map[user.user_id] }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="no-contacts">No contacts available. Connect with users to start chatting.</div>
+        {% endif %}
+    </div>
+
+    <div class="message-thread">
+        <h3>Conversation with {{ selected_user.name if selected_user else '...' }}</h3>
+        {% if thread %}
+            {% for m in thread %}
+            <div class="message-item {{ 'outgoing' if m.sender_id == user_id else 'incoming' }}">
+                <p>{{ m.message_text }}</p>
+                <small>{{ m.sent_at }}</small>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No messages yet.</p>
+        {% endif %}
+
+        <form action="{{ url_for('send_message') }}" method="POST" class="message-form" enctype="multipart/form-data">
+            <input type="hidden" name="receiver_id" value="{{ selected_user.user_id if selected_user else '' }}">
+            <input type="text" name="message" placeholder="Write a message" required>
+            <input type="file" name="attachment" accept="image/*" style="margin:6px 0;">
+            <button type="submit">Send</button>
+            <span id="typing-status" class="typing-status">&nbsp;</span>
+        </form>
+    </div>
+</div>
+
+<script>
+    const messageInput = document.querySelector('.message-form input[name="message"]');
+    const typingStatus = document.getElementById('typing-status');
+    if (messageInput && typingStatus) {
+        let timer;
+        messageInput.addEventListener('input', () => {
+            typingStatus.innerText = 'Typing...';
+            clearTimeout(timer);
+            timer = setTimeout(() => typingStatus.innerText = '', 1000);
+        });
+    }
+
+<script>
+    const searchInput = document.getElementById('contactSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('.contact-item').forEach(el => {
+                const name = el.querySelector('span')?.innerText.toLowerCase() || '';
+                el.style.display = name.includes(term) ? 'flex' : 'none';
+            });
+        });
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+
+<div class="login-box">
+    <h2>Skill Exchange</h2>
+    <p style="color:#2d4c8e;">Learn, share, and connect with a skill-based peer network.</p>
+
+    {% if error %}
+        <div class="login-error">{{ error }}</div>
+    {% endif %}
+
+    <form action="/login" method="POST">
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+
+        <button type="submit">Login</button>
+    </form>
+
+    <div class="login-helper">
+        <a href="#">Forgot password?</a>
+    </div>
+
+    <p style="margin-top:12px;">No account? <a href="{{ url_for('register') }}">Register here</a></p>
+</div>
+<div class="login-decor">✦ Join the Knowledge Community ✦</div>
+
+</body>
+</html>

@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+{% block page_header %}Analytics{% endblock %}
+{% block content %}
+
+<div class="analytics-page">
+    <div class="analytics-top">
+        <div class="analytics-title">
+            <h1>Skill Analytics Dashboard</h1>
+            <p>Track your learning, sharing, and connections</p>
+        </div>
+        <div class="time-filters">
+            <button class="time-btn active" data-days="1">Today</button>
+            <button class="time-btn" data-days="7">Last 7 Days</button>
+            <button class="time-btn" data-days="30">Last 30 Days</button>
+        </div>
+    </div>
+
+    <div class="kpi-cards">
+        <article class="kpi-card">
+            <div class="kpi-icon">📹</div>
+            <div class="kpi-info"><h2>{{ user_video_count }}</h2><p>Videos Uploaded</p></div>
+            <div class="kpi-change">+{{ (chart_videos[-1] - chart_videos[0] if chart_videos|length>1 else 0) }}%</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-icon">🤝</div>
+            <div class="kpi-info"><h2>{{ user_conn_count }}</h2><p>Connections Made</p></div>
+            <div class="kpi-change">+{{ (chart_connections[-1] - chart_connections[0] if chart_connections|length>1 else 0) }}%</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-icon">👁</div>
+            <div class="kpi-info"><h2>{{ profile_views_total }}</h2><p>Profile Views</p></div>
+            <div class="kpi-change">+{{ (chart_profile[-1] - chart_profile[0] if chart_profile|length>1 else 0) }}%</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-icon">⭐</div>
+            <div class="kpi-info"><h2>{{ skills_shared }}</h2><p>Skills Shared</p></div>
+            <div class="kpi-change">+12%</div>
+        </article>
+    </div>
+
+    <div class="chart-control">
+        <div class="chart-buttons">
+            <button class="chart-btn active" data-set="videos">Videos</button>
+            <button class="chart-btn" data-set="connections">Connections</button>
+            <button class="chart-btn" data-set="views">Profile Views</button>
+        </div>
+        <div class="insights-panel">
+            <h3>Activity Insights</h3>
+            <ul>
+                <li>🔥 Most active day: <strong>{{ most_active_day }}</strong></li>
+                <li>📈 Growth rate: <strong>{{ growth_rate }}%</strong></li>
+                <li>🎯 Engagement score: <strong>{{ engagement_score }}</strong></li>
+                <li>💡 Suggestion: Upload more videos to increase reach</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="chart-wrap">
+        <canvas id="analyticsLineChart"></canvas>
+    </div>
+
+    <div class="distribution-feed">
+        <div class="pie-card">
+            <h3>Your Skill Breakdown</h3>
+            {% if user_skill_details|length > 0 %}
+                <canvas id="categoryPieChart"></canvas>
+                <div class="pie-legend" id="pieLegend"></div>
+            {% else %}
+                <div class="no-skills-message">No skills added yet. Add skills in your profile or settings to track usage.</div>
+            {% endif %}
+        </div>
+        <div class="activity-feed">
+            <h3>Recent Activity</h3>
+            <ul>
+                <li>You uploaded a video</li>
+                <li>You connected with someone new</li>
+                <li>You received profile views</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const fullData = {
+    labels: {{ chart_dates|tojson }},
+    videos: {{ chart_videos|tojson }},
+    connections: {{ chart_connections|tojson }},
+    views: {{ chart_profile|tojson }}
+};
+
+const chartCanvas = document.getElementById('analyticsLineChart');
+const chartCtx = chartCanvas.getContext('2d');
+
+function createGradient(color){
+    const gradient = chartCtx.createLinearGradient(0, 0, 0, chartCanvas.height);
+    gradient.addColorStop(0, color.replace('rgb(', 'rgba(').replace(')', ', 0.25)'));
+    gradient.addColorStop(1, color.replace('rgb(', 'rgba(').replace(')', ', 0.00)'));
+    return gradient;
+}
+
+const chartConfig = {
+    type: 'line',
+    data: {
+        labels: fullData.labels,
+        datasets: [{
+            label: 'Videos',
+            data: fullData.videos,
+            borderColor: '#3B82F6',
+            backgroundColor: createGradient('rgb(59,130,246)'),
+            tension: 0.4,
+            borderWidth: 3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#3B82F6',
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { labels: { color: '#111827', font: { weight: '700', size: 13 } } },
+            tooltip: { mode: 'index', intersect: false, backgroundColor: '#111827', titleColor: '#fff', bodyColor: '#fff', borderColor: '#374151', borderWidth: 1, padding: 10 },
+            datalabels: { display: false }
+        },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: {
+            x: { grid: { color: 'rgba(148,163,184,0.15)' }, ticks: { color: '#111827' } },
+            y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.15)' }, ticks: { color: '#111827' } }
+        }
+    }
+};
+
+const lineChart = new Chart(document.getElementById('analyticsLineChart').getContext('2d'), chartConfig);
+
+function updateChart(datasetKey){
+    const dataMap = {
+        videos: {data: fullData.videos, color: '#3B82F6'},
+        connections: {data: fullData.connections, color: '#10B981'},
+        views: {data: fullData.views, color: '#06B6D4'}
+    };
+    const config = dataMap[datasetKey];
+    lineChart.data.datasets[0].data = config.data;
+    lineChart.data.datasets[0].label = datasetKey === 'views' ? 'Profile Views' : datasetKey.charAt(0).toUpperCase() + datasetKey.slice(1);
+    lineChart.data.datasets[0].borderColor = config.color;
+    lineChart.data.datasets[0].backgroundColor = createGradient(config.color);
+    lineChart.data.datasets[0].pointBackgroundColor = config.color;
+    lineChart.update();
+}
+
+function setActiveButton(buttons, activeButton){
+    buttons.forEach(btn => btn.classList.remove('active'));
+    activeButton.classList.add('active');
+}
+
+function filterByDays(days){
+    let start = Math.max(0, fullData.labels.length - days);
+    lineChart.data.labels = fullData.labels.slice(start);
+    lineChart.data.datasets[0].data = (lineChart.data.datasets[0].label === 'Profile Views' ? fullData.views : lineChart.data.datasets[0].label === 'Connections' ? fullData.connections : fullData.videos).slice(start);
+    lineChart.update();
+}
+
+const chartButtons = document.querySelectorAll('.chart-btn');
+chartButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        setActiveButton(chartButtons, btn);
+        updateChart(btn.dataset.set);
+    });
+});
+
+const timeButtons = document.querySelectorAll('.time-btn');
+const rangeMap = { 'Today': 1, '7': 7, '30': 30 };
+timeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        setActiveButton(timeButtons, btn);
+        const days = parseInt(btn.dataset.days, 10);
+        filterByDays(days);
+    });
+});
+
+const userSkillDetails = {{ user_skill_details|tojson | default('[]') }};
+const categoryColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#F43F5E', '#14B8A6', '#F59E0B', '#6B7280', '#60A5FA', '#A78BFA'];
+
+if (userSkillDetails.length > 0) {
+    const labels = userSkillDetails.map(s => s.skill_name);
+    const values = userSkillDetails.map(s => s.count || 1);
+    const colors = labels.map((_, i) => categoryColors[i % categoryColors.length]);
+
+    const pieCtx = document.getElementById('categoryPieChart').getContext('2d');
+    const pieChart = new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#111827' } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            return `${label}: ${value}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const legendContainer = document.getElementById('pieLegend');
+    if (legendContainer) {
+        legendContainer.innerHTML = labels.map((skill, i) =>
+            `<span class="legend-chip" style="background:${colors[i]};">${skill} (${values[i]})</span>`
+        ).join(' ');
+    }
+} else {
+    const ctxEl = document.getElementById('categoryPieChart');
+    if (ctxEl) ctxEl.style.display = 'none';
+}
+</script>
+
+{% endblock %}

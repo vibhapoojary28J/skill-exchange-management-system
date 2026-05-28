@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Profile{% endblock %}
+{% block page_header %}Profile{% endblock %}
+{% block content %}
+
+<div class="profile-area">
+    <div class="profile-box">
+        <img src="{{ user.profile_pic or 'https://api.dicebear.com/7.x/adventurer/svg?seed=default' }}" class="profile-img" alt="Profile" onerror="this.onerror=null;this.src='https://api.dicebear.com/7.x/adventurer/svg?seed=fallback';">
+        <h2>{{ user.name }}</h2>
+        <p>{{ user.bio or 'No bio yet. Add a short bio in Settings.' }}</p>
+
+        <div class="profile-stats">
+            <div><strong>Videos</strong><br>{{ video_count }}</div>
+            <div><strong>Skills</strong><br>{{ user_skills|length }}</div>
+            <div><strong>Connections</strong><br>{{ connections|length }}</div>
+        </div>
+
+        <div class="profile-details">
+            <p><strong>Email:</strong> {{ user.email }}</p>
+            {% if user_skills %}
+            <p><strong>Top Skills:</strong></p>
+            <div class="skill-badges">
+                {% for skill in user_skills %}
+                <span class="skill-badge view-only">{{ skill.skill_name }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>No skills added yet.</p>
+            {% endif %}
+        </div>
+
+        {% if is_owner %}
+        <div class="profile-actions">
+            <a href="{{ url_for('settings') }}" class="button">Edit Profile</a>
+            <a href="{{ url_for('connections') }}" class="button secondary">Manage Connections</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="profile-videos">
+        <h3>Your uploaded videos</h3>
+        {% if user_videos %}
+            {% for vid in user_videos %}
+            <div class="video-card">
+                <h4>{{ vid.title }}</h4>
+                <p>{{ vid.description }}</p>
+                {% if is_owner %}
+                <form action="{{ url_for('delete_video', video_id=vid.video_id) }}" method="POST" class="inline-form delete-form">
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No uploads yet. <a href="{{ url_for('upload_video') }}">Upload one</a>.</p>
+        {% endif %}
+
+        <hr>
+        <h3>Connected people</h3>
+        {% if connections %}
+            <div class="connections-list">
+                {% for c in connections %}
+                <div class="connection-item">
+                    <img src="{{ c.profile_pic or 'https://api.dicebear.com/7.x/adventurer/svg?seed=default' }}" alt="{{ c.name }}" class="connection-avatar">
+                    <div>
+                        <strong><a href="{{ url_for('view_user_profile', profile_user_id=c.user_id) }}">{{ c.name }}</a></strong><br>
+                        <span class="connection-status">{{ c.status|capitalize }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No connections yet. Invite your first 5 people to grow your network.</p>
+            <div class="suggested-invite-grid">
+                {% for u in suggested_users %}
+                <div class="suggested-card">
+                    <img src="{{ u.profile_pic or 'https://api.dicebear.com/7.x/adventurer/svg?seed=default' }}" alt="{{ u.name }}" class="connection-avatar">
+                    <div>
+                        <strong><a href="{{ url_for('view_user_profile', profile_user_id=u.user_id) }}">{{ u.name }}</a></strong>
+                    </div>
+                    <form method="POST" action="{{ url_for('send_request', user_id=u.user_id) }}">
+                        <button type="submit" class="small-button">Connect</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            <p><a href="{{ url_for('connections') }}">See all users</a></p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.delete-form').forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                if (!confirm('Are you sure you want to delete this video? This cannot be undone.')) {
+                    event.preventDefault();
+                }
+            });
+        });
+
+        var toast = document.querySelector('.toast');
+        if (toast) {
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
+            }, 2800);
+        }
+
+        const addSkillBtn = document.getElementById('addSkillBtn');
+        const newSkillInput = document.getElementById('newSkillInput');
+        const newSkillCategory = document.getElementById('newSkillCategory');
+        const skillBadges = document.getElementById('skill-badges');
+
+        function refreshRemoveHandlers() {
+            document.querySelectorAll('.remove-skill-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const skillId = btn.dataset.skillId;
+                    if (!skillId || !confirm('Remove this skill?')) return;
+                    const resp = await fetch(`/remove_skill/${skillId}`, { method: 'POST' });
+                    const data = await resp.json();
+                    if (data.success) {
+                        const badge = document.querySelector(`.skill-badge[data-skill-id='${skillId}']`);
+                        if (badge) badge.remove();
+                        if (!document.querySelectorAll('.skill-badge').length) {
+                            skillBadges.innerHTML = '<p>No skills added yet.</p>';
+                        }
+                    } else {
+                        alert('Could not remove skill.');
+                    }
+                });
+            });
+        }
+
+        refreshRemoveHandlers();
+
+        async function addSkill(skillName, category) {
+            if (!skillName) return;
+            const formData = new FormData();
+            formData.append('skill_name', skillName.trim());
+            formData.append('category', category.trim());
+            const resp = await fetch('/add_skill', { method: 'POST', body: formData });
+            const data = await resp.json();
+            if (data.success) {
+                const skill = data.skill;
+                const newBadge = document.createElement('span');
+                newBadge.className = 'skill-badge';
+                newBadge.dataset.skillId = skill.skill_id;
+                newBadge.innerHTML = `${skill.skill_name} <button class="remove-skill-btn" data-skill-id="${skill.skill_id}" title="Remove skill">×</button>`;
+
+                if (skillBadges.querySelector('p')) {
+                    skillBadges.innerHTML = '';
+                }
+                skillBadges.appendChild(newBadge);
+                refreshRemoveHandlers();
+            } else {
+                alert(data.message || 'Failed to add skill.');
+            }
+        }
+
+        if (addSkillBtn) {
+            addSkillBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const raw = newSkillInput.value || '';
+                const category = newSkillCategory.value;
+                raw.split(',').map(item => item.trim()).filter(Boolean).forEach(item => addSkill(item, category));
+                newSkillInput.value = '';
+            });
+
+            newSkillInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    addSkillBtn.click();
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock %}
