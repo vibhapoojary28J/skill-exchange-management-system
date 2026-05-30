@@ -18,7 +18,6 @@ A web-based Skill Exchange Management System developed using Flask, SQLite, HTML
 * SQLite
 * HTML
 * CSS
-* JavaScript
 
 ## Project Structure
 
